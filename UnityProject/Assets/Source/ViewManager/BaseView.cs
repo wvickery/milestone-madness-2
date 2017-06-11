@@ -5,21 +5,23 @@ using UnityEngine;
 public abstract class BaseView : MonoBehaviour
 {
 	#region API
-	public void Open(ViewManager InViewManager)
+	public delegate void OnClosedDelegate();
+	public OnClosedDelegate OnClosed;
+
+	public void Open()
 	{
-		if (m_ViewManager == null)
+		if (!m_bOpened)
 		{
-			m_ViewManager = InViewManager;
+			m_bOpened = true;
 			StartCoroutine(Show());
 		}
 	}
 
 	public void Close()
 	{
-		if (m_ViewManager != null)
+		if (m_bOpened)
 		{
-			StartCoroutine(Hide());
-			m_ViewManager = null;
+			StartCoroutine(CloseCoroutine());
 		}
 	}
 
@@ -35,6 +37,7 @@ public abstract class BaseView : MonoBehaviour
 				yield return StartCoroutine(AnimateIn());
 			}
 
+			m_bShown = true;
 			OnShow();
 		}
 	}
@@ -50,6 +53,7 @@ public abstract class BaseView : MonoBehaviour
 				yield return StartCoroutine(AnimateOut());
 			}
 
+			m_bShown = false;
 			PostHide();
 		}
 	}
@@ -66,8 +70,26 @@ public abstract class BaseView : MonoBehaviour
 	protected virtual IEnumerator AnimateOut() { yield return null; }
 	#endregion
 
-	private ViewManager m_ViewManager = null;
-
+	#region Internal
 	private int m_ShowCount = 0;
+
+	private bool m_bOpened = false;
 	private bool m_bShown = false;
+
+	private IEnumerator CloseCoroutine()
+	{
+		if (m_bOpened)
+		{
+			yield return StartCoroutine(Hide());
+
+			m_bOpened = false;
+
+			if (OnClosed != null)
+			{
+				OnClosed();
+			}
+		}
+	}
+
+	#endregion
 }
