@@ -43,7 +43,7 @@ public class ViewManager : MonoBehaviour
 
 	#region API
 
-	public BaseViewTracker ShowView<TViewType>(string PrefabName, bool bHidePrevious = true)
+	public BaseViewTracker OpenView<TViewType>(string PrefabName, bool bHidePrevious = true)
 		where TViewType : BaseView
 	{
 		if (m_RootCanvas != null)
@@ -79,7 +79,7 @@ public class ViewManager : MonoBehaviour
 
 	#region Internal
 
-	public void Start()
+	public void Awake()
 	{
 		for (int Index = 0; Index < transform.childCount; Index++)
 		{
@@ -95,25 +95,35 @@ public class ViewManager : MonoBehaviour
 
 	public void Update()
 	{
-		while (m_ShowQueue.Count > 0 && (m_RootCanvas != null))
+		while (!m_bPushingView && (m_ShowQueue.Count > 0) && (m_RootCanvas != null))
 		{
-			ViewQueueEntry ViewSetup = m_ShowQueue.Dequeue();
+			ViewQueueEntry QueueEntry = m_ShowQueue.Dequeue();
 
-			BaseView NewView = Instantiate<BaseView>(ViewSetup.PrefabType, m_RootCanvas.transform);
-			ViewSetup.Tracker.Track(NewView);
-			NewView.OnClosed += ViewSetup.Tracker.End;
+			StartCoroutine(PushView(QueueEntry));
 		}
 	}
 
-	private IEnumerator PushView(BaseViewTracker Tracker)
+	private IEnumerator PushView(ViewQueueEntry QueueEntry)
 	{
-		if (Tracker.GetView<BaseView>() != null)
+		if (!m_bPushingView && QueueEntry.IsValid())
 		{
-			yield return StartCoroutine(m_ViewStack.Peek().GetView<BaseView>().Hide());
+			m_bPushingView = true;
 
-			m_ViewStack.Push(Tracker);
+			if (m_ViewStack.Count > 0)
+			{
+				yield return StartCoroutine(m_ViewStack.Peek().GetView<BaseView>().Hide());
+			}
 
-			Tracker.GetView<BaseView>().Open();
+			BaseView NewView = Instantiate<BaseView>(QueueEntry.PrefabType, m_RootCanvas.transform);
+
+			QueueEntry.Tracker.Track(NewView);
+			NewView.OnClosed += QueueEntry.Tracker.End;
+
+			m_ViewStack.Push(QueueEntry.Tracker);
+
+			yield return QueueEntry.Tracker.GetView<BaseView>().Open();
+
+			m_bPushingView = false;
 		}
 	}
 
@@ -129,8 +139,16 @@ public class ViewManager : MonoBehaviour
 			PrefabType = InPrefabType;
 			Tracker = InTracker;
 		}
+
+		public bool IsValid()
+		{
+			return (PrefabType != null) && (Tracker != null);
+		}
 	}
+
 	private Queue<ViewQueueEntry> m_ShowQueue = new Queue<ViewQueueEntry>();
+
+	private bool m_bPushingView;
 
 	private Stack<BaseViewTracker> m_ViewStack = new Stack<BaseViewTracker>();
 

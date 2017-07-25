@@ -8,21 +8,25 @@ public abstract class BaseView : MonoBehaviour
 	public delegate void OnClosedDelegate();
 	public OnClosedDelegate OnClosed;
 
-	public void Open()
+	public Coroutine Open()
 	{
 		if (!m_bOpened)
 		{
 			m_bOpened = true;
-			StartCoroutine(Show());
+			return StartCoroutine(Show());
 		}
+
+		return null;
 	}
 
-	public void Close()
+	public Coroutine Close()
 	{
 		if (m_bOpened)
 		{
-			StartCoroutine(CloseCoroutine());
+			return StartCoroutine(CloseCoroutine());
 		}
+
+		return null;
 	}
 
 	public IEnumerator Show(bool bInstant = false)
@@ -43,7 +47,7 @@ public abstract class BaseView : MonoBehaviour
 	}
 
 	public IEnumerator Hide(bool bInstant = false)
-	{
+	{ 
 		if (m_bShown)
 		{
 			OnHide();
